@@ -1,6 +1,6 @@
 
 //jshint esversion:6
-require('dotenv').config();  ///always on top 
+const md5 = require('md5');  /// npm library for inbuilt hash function 
 const encrypt = require("mongoose-encryption");
 const bodyParser = require("body-parser");
 const express = require("express");
@@ -37,8 +37,6 @@ const userSchema = new mongoose.Schema(
 
 ///////encryption come before model 
 
-userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
-
 const User = mongoose.model("User", userSchema);
 
 //////////////////////////////////////////////////// level 2 security ////// 
@@ -64,16 +62,20 @@ app.get("/login", function (req, res) {
 });
 
 
+app.get("/logout", function(req, res){
+
+    res.render("home");
+});
+
 ///////////////////////////////////////// post 
 app.post("/register", function (req, res) {
 
     const newUser = new User({
         email: req.body.username,
-        password: req.body.password
+        password: md5(req.body.password)
 
     });
 
-    //// this moongoose encryption encrypt or decrypt one object at time so cann't use "insertMany" but use "save()" method
     async function addUser() {
         try {
             await newUser.save();
@@ -93,7 +95,7 @@ app.post("/login", function (req, res) {
         try {
             const value = await User.findOne({ email: req.body.username });
             if (value) {
-                if (value.password === req.body.password) {
+                if (value.password === md5(req.body.password) ) {
                     res.render("secrets");
                 }
 
