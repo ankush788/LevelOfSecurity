@@ -1,5 +1,6 @@
 
 //jshint esversion:6
+const encrypt = require("mongoose-encryption");
 const bodyParser = require("body-parser");
 const express = require("express");
 const ejs = require("ejs");
@@ -33,11 +34,14 @@ const userSchema = new mongoose.Schema(
 
 );
 
-///////n
+///////encryption come before model 
+
+const secret = "ThisIsOurEncryptionTool";
+userSchema.plugin(encrypt, { secret: secret, encryptedFields: ['password'] });
 
 const User = mongoose.model("User", userSchema);
 
-//////////////////////////////////////////////////// level 1 security ////// 
+//////////////////////////////////////////////////// level 2 security ////// 
 
 
 ///////////////////get 
