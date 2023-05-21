@@ -1,6 +1,6 @@
 
 //jshint esversion:6
-const md5 = require('md5');  /// npm library for inbuilt hash function 
+const bcrypt = require('bcrypt'); ///salting  
 const encrypt = require("mongoose-encryption");
 const bodyParser = require("body-parser");
 const express = require("express");
@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema(
 
 const User = mongoose.model("User", userSchema);
 
-//////////////////////////////////////////////////// level 2 security ////// 
+//////////////////////////////////////////////////// level 4 security (bycrpty) ////// 
 
 
 ///////////////////get 
@@ -68,34 +68,48 @@ app.get("/logout", function(req, res){
 });
 
 ///////////////////////////////////////// post 
-app.post("/register", function (req, res) {
+const saltRounds = 12;
 
-    const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
-
-    });
-
-    async function addUser() {
-        try {
-            await newUser.save();
-            console.log("register sucessfuly");
-            res.render("secrets");
+app.post("/register", function (req, res) {   
+    
+     bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+        
+        if(err)
+        {
+             console.log(err);
         }
-        catch (err) {
-            console.log(err);
-        }
-    }
 
-    addUser();
+        else{
+            const newUser = new User({
+                email: req.body.username,
+                password: hash
+            });
+
+            async function addUser() {
+                try {
+                    await newUser.save();
+                    console.log("register sucessfuly");
+                    res.render("secrets");
+                }
+                catch (err) {
+                    console.log(err);
+                }
+            }
+
+            addUser();
+        }
+    });    
+    
 });
+
+
 
 app.post("/login", function (req, res) {
     async function auth() {
         try {
             const value = await User.findOne({ email: req.body.username });
             if (value) {
-                if (value.password === md5(req.body.password) ) {
+                if (bcrypt.compareSync(req.body.password, value.password) ) {
                     res.render("secrets");
                 }
 
