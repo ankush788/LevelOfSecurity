@@ -47,8 +47,15 @@ const userSchema = new mongoose.Schema(
         googleId:
         {
             type: String,
-            require: [true, "please enter the passwod "]
+            require: [true, "please enter the password "]
+        },
+
+        secret:
+        {
+             type : String  
+            
         }
+        
     }
 );
 
@@ -76,15 +83,6 @@ passport.deserializeUser(function (id, done) {
 
  
 
-app.get('/auth/facebook',
-    passport.authenticate('facebook'));
-
-app.get('/auth/facebook/secrets',
-    passport.authenticate('facebook', { failureRedirect: '/login' }),
-    function (req, res) {
-        
-        res.redirect("/secrets");
-    });
 
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
@@ -141,12 +139,39 @@ app.get("/logout", function (req, res) {
 });
 
 app.get("/secrets", function (req, res) {
+     
+    async function showSecrets()
+    {
+        try{
+        const data = await  User.find({ secret: { $exists: true } });
+        
+        res.render("secrets", {value:data} );
+        }
+         catch(err)
+        {
+             console.log(err);
+        }
+    }
+
+    showSecrets();
+});
+
+app.get("/logout", function( req,res)
+{
+   res.redirect("/login"); 
+});
+
+app.get("/submit" ,function(req, res)
+{
+{
     if (req.isAuthenticated()) {
-        res.render("secrets");
+        res.render("submit");
+      
     }
     else {
-        res.redirect("/login");
-    }
+       res.redirect("/login");
+    }  
+}
 });
 ///////////////////////////////////////// post 
 
@@ -160,7 +185,7 @@ app.post("/register", function (req, res) {
         }
         else {
             passport.authenticate("local")(req, res, function () {
-                res.render("secrets");
+                res.redirect("/secrets");
             });
         }
     })
@@ -181,13 +206,34 @@ app.post("/login", function (req, res) {
         }
         else {
             passport.authenticate("local")(req, res, function () {
-                res.render("secrets");
+                res.redirect("/secrets");
             });
         }
     });
 
 
 });
+
+
+app.post( "/submit" , function( req,res){
+ 
+    async function posting ( )
+    {           
+        try {
+         const val = await User.findByIdAndUpdate( req.user.id , {$set: {secret: req.body.secret }} );
+         console.log(val);
+         res.redirect("/secrets")
+        }
+        catch(err)
+        {
+             console.log(err);
+        }
+
+    }
+
+    posting();
+});
+////////////////////////////
 
 app.listen(3000, function () {
     console.log("app is listening on 3000 port ");
