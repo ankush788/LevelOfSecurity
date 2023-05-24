@@ -12,6 +12,8 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const findOrCreate = require('mongoose-findorcreate');
+const FacebookStrategy = require('passport-facebook').Strategy;
+const GitHubStrategy = require('passport-github').Strategy;
 
 app.set('view engine', 'ejs');
 
@@ -50,22 +52,42 @@ const userSchema = new mongoose.Schema(
             require: [true, "please enter the password "]
         },
 
+        facebookId:
+        {
+            type: String,
+            require: [true, "please enter the password "]
+        },
+
+
+        githubId:
+        {
+            type: String,
+            require: [true, "please enter the password "]
+        },
         secret:
         {
-             type : String  
-            
+            type: String
+
         }
-        
+
     }
 );
 
+
+//////////////////////plugin 
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
 
+
+/////////////////////////////////model 
 const User = new mongoose.model("User", userSchema);
 
+
+///////////////////////////////////////////////////strategy 
 passport.use(User.createStrategy());
 
+
+////////////////////serialiable and deserialiable 
 passport.serializeUser(function (user, done) {
     done(null, user.id);
 });
@@ -80,10 +102,7 @@ passport.deserializeUser(function (id, done) {
 });
 
 
-
- 
-
-
+///////////////////////////////connecting code 
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
@@ -97,14 +116,32 @@ passport.use(new GoogleStrategy({
 }));
 
 
-//////////////////////////////////////////////////// level 5 security (cookies security  ) ////// 
+passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_ID,
+    clientSecret: process.env.FACEBOOK_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets"
+},
+    function (accessToken, refreshToken, profile, cb) {
+        User.findOrCreate({ facebookId: profile.id }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
 
 
-///////////////////get 
-app.get("/", function (req, res) {
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_ID,
+    clientSecret: process.env.GITHUB_SECRET,
+    callbackURL: "http://localhost:3000/auth/github/secrets"
+},
+    function (accessToken, refreshToken, profile, cb) {
+        User.findOrCreate({ githubId: profile.id }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
+//////////////////////////////////////////////////// level 6 security (cookies security and oauth   ) ////// 
 
-    res.render("home");
-});
 
 ///// use for google authentication when user  choose go with google 
 app.get("/auth/google",
@@ -113,9 +150,40 @@ app.get("/auth/google",
 app.get("/auth/google/secrets",
     passport.authenticate('google', { failureRedirect: '/login' }),
     function (req, res) {
-        // Successful authentication, redirect home.
+
         res.redirect('/secrets');
     });
+
+
+///// use for facebook authentication when user  choose go with facebook 
+app.get('/auth/facebook',
+    passport.authenticate('facebook'));
+
+app.get('/auth/facebook/secrets',
+    passport.authenticate('facebook', { failureRedirect: '/login' }),
+    function (req, res) {
+
+        res.redirect('/secrets');
+    });
+
+
+///// use for github authentication when user  choose go with github
+app.get('/auth/github',
+    passport.authenticate('github'));
+
+app.get('/auth/github/secrets',
+    passport.authenticate('github', { failureRedirect: '/login' }),
+    function (req, res) {
+
+        res.redirect('/secrets');
+    });
+
+
+///////////////////get 
+app.get("/", function (req, res) {
+
+    res.render("home");
+});
 
 app.get("/register", function (req, res) {
 
@@ -138,43 +206,45 @@ app.get("/logout", function (req, res) {
     });
 });
 
+/////////////////secret
 app.get("/secrets", function (req, res) {
-     
-    async function showSecrets()
-    {
-        try{
-        const data = await  User.find({ secret: { $exists: true } });
-        
-        res.render("secrets", {value:data} );
+
+    async function showSecrets() {
+        try {
+            const data = await User.find({ secret: { $exists: true } });
+
+            res.render("secrets", { value: data });
         }
-         catch(err)
-        {
-             console.log(err);
+        catch (err) {
+            console.log(err);
         }
     }
 
     showSecrets();
 });
 
-app.get("/logout", function( req,res)
-{
-   res.redirect("/login"); 
+app.get("/logout", function (req, res) {
+    res.redirect("/login");
 });
 
-app.get("/submit" ,function(req, res)
-{
-{
-    if (req.isAuthenticated()) {
-        res.render("submit");
-      
+app.get("/submit", function (req, res) {
+    {
+        if (req.isAuthenticated()) {
+            res.render("submit");
+
+        }
+        else {
+            res.redirect("/login");
+        }
     }
-    else {
-       res.redirect("/login");
-    }  
-}
 });
-///////////////////////////////////////// post 
 
+app.get("/privacyPolicy", function (req, res) {
+    res.render("privacyPolicy");
+});
+
+
+///////////////////////////////////////////////////////////post
 
 app.post("/register", function (req, res) {
 
@@ -215,18 +285,16 @@ app.post("/login", function (req, res) {
 });
 
 
-app.post( "/submit" , function( req,res){
- 
-    async function posting ( )
-    {           
+app.post("/submit", function (req, res) {
+
+    async function posting() {
         try {
-         const val = await User.findByIdAndUpdate( req.user.id , {$set: {secret: req.body.secret }} );
-         console.log(val);
-         res.redirect("/secrets")
+            const val = await User.findByIdAndUpdate(req.user.id, { $set: { secret: req.body.secret } });
+            console.log("add secret sucessfully ");
+            res.redirect("/secrets")
         }
-        catch(err)
-        {
-             console.log(err);
+        catch (err) {
+            console.log(err);
         }
 
     }
